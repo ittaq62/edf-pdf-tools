@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QListWidget, QComboBox, QProgressBar, QFileDialog, QMessageBox,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl
 
 from pdf_tools import compress_pdf, QUALITY_PRESETS
 
@@ -35,8 +35,27 @@ class CompressWorker(QThread):
 class CompressPage(QWidget):
     def __init__(self):
         super().__init__()
+        self.setAcceptDrops(True)
         self.workers = []
         self._setup_ui()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.toLocalFile().lower().endswith(".pdf"):
+                    event.acceptProposedAction()
+                    return
+
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            if path.lower().endswith(".pdf") and not self._file_already_listed(path):
+                size = os.path.getsize(path)
+                display = f"{Path(path).name}  ({self._format_size(size)})"
+                self.file_list.addItem(display)
+                self.file_list.item(self.file_list.count() - 1).setData(
+                    Qt.ItemDataRole.UserRole, path,
+                )
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
