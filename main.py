@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import QApplication, QLabel
 from PyQt6.QtCore import Qt
 
 from app import MainWindow
+from compress_page import CompressPage
 
 
 def main():
@@ -11,9 +12,7 @@ def main():
 
     window = MainWindow()
 
-    placeholder_compress = QLabel("Page Compression")
-    placeholder_compress.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    window.add_page(placeholder_compress, 0)
+    window.add_page(CompressPage(), 0)
 
     placeholder_merge = QLabel("Page Fusion")
     placeholder_merge.setAlignment(Qt.AlignmentFlag.AlignCenter)
