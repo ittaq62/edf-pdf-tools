@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 
-from theme import create_edf_logo, STYLESHEET, EDF_BLUE, EDF_WHITE
+from theme import STYLESHEET, EDF_BLUE, EDF_WHITE
+from resources import get_edf_logo_pixmap
 
 
 class MainWindow(QMainWindow):
@@ -41,7 +42,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(6)
 
         logo_label = QLabel()
-        logo_label.setPixmap(create_edf_logo(180, 70))
+        logo_label.setPixmap(get_edf_logo_pixmap(180, 70))
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(logo_label)
 
