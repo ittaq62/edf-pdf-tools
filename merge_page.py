@@ -34,6 +34,7 @@ class MergeWorker(QThread):
 class MergePage(QWidget):
     def __init__(self):
         super().__init__()
+        self.setAcceptDrops(True)
         self.worker = None
         self._setup_ui()
 
@@ -115,6 +116,23 @@ class MergePage(QWidget):
         self.status_label = QLabel("")
         self.status_label.setObjectName("status")
         layout.addWidget(self.status_label)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.toLocalFile().lower().endswith(".pdf"):
+                    event.acceptProposedAction()
+                    return
+
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            if path.lower().endswith(".pdf") and not self._file_already_listed(path):
+                size = os.path.getsize(path)
+                display = f"{Path(path).name}  ({self._format_size(size)})"
+                self.file_list.addItem(display)
+                item = self.file_list.item(self.file_list.count() - 1)
+                item.setData(Qt.ItemDataRole.UserRole, path)
 
     def _add_files(self):
         files, _ = QFileDialog.getOpenFileNames(

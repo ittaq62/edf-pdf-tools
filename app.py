@@ -16,6 +16,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(900, 620)
         self.resize(1000, 680)
         self.setStyleSheet(STYLESHEET)
+        self.setWindowIcon(QIcon(get_edf_logo_pixmap(64, 64)))
 
         central = QWidget()
         self.setCentralWidget(central)
