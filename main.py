@@ -1,9 +1,9 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QLabel
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
 
 from app import MainWindow
 from compress_page import CompressPage
+from merge_page import MergePage
 
 
 def main():
@@ -13,10 +13,7 @@ def main():
     window = MainWindow()
 
     window.add_page(CompressPage(), 0)
-
-    placeholder_merge = QLabel("Page Fusion")
-    placeholder_merge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    window.add_page(placeholder_merge, 1)
+    window.add_page(MergePage(), 1)
 
     window.show()
     sys.exit(application.exec())
