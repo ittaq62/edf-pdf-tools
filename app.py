@@ -7,12 +7,13 @@ from PyQt6.QtGui import QIcon
 
 from theme import STYLESHEET, EDF_WHITE
 from resources import get_edf_logo_pixmap
+from version import APP_NAME, APP_VERSION
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("EDF PDF Tools")
+        self.setWindowTitle(APP_NAME)
         self.setMinimumSize(850, 580)
         self.resize(960, 640)
         self.setStyleSheet(STYLESHEET)
@@ -64,7 +65,7 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        version_label = QLabel("v1.0.0")
+        version_label = QLabel(f"v{APP_VERSION}")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         version_label.setStyleSheet(f"color: rgba(255,255,255,0.35); font-size: 10px;")
         layout.addWidget(version_label)
