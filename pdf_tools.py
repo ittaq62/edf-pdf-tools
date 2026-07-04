@@ -1,135 +1,121 @@
 import io
+import shutil
 from pathlib import Path
-
-from pypdf import PdfReader, PdfWriter
-from PIL import Image
 
 
 QUALITY_PRESETS = {
-    "Légère": {"image_quality": 80, "scale": 1.0},
-    "Moyenne": {"image_quality": 50, "scale": 0.85},
-    "Forte": {"image_quality": 25, "scale": 0.7},
+    "Légère": {"quality": 75, "max_dimension": 2400},
+    "Moyenne": {"quality": 55, "max_dimension": 1600},
+    "Forte": {"quality": 35, "max_dimension": 1100},
 }
+
+# En dessous de cette surface, une image ne pèse presque rien :
+# la retraiter n'apporte aucun gain visible
+MIN_IMAGE_PIXELS = 10_000
 
 
 def compress_pdf(input_path, output_path, quality_name="Moyenne", progress_callback=None):
+    from pypdf import PdfWriter
+
     preset = QUALITY_PRESETS[quality_name]
-    reader = PdfReader(input_path)
-    writer = PdfWriter()
 
-    total_pages = len(reader.pages)
+    writer = PdfWriter(clone_from=input_path)
+    if progress_callback:
+        progress_callback(5)
 
-    for i, page in enumerate(reader.pages):
-        writer.add_page(page)
-
-        if progress_callback:
-            progress_callback(int((i + 1) / total_pages * 50))
-
-    _compress_images(writer, preset, progress_callback, total_pages)
+    _recompress_images(writer, preset, progress_callback)
 
     for page in writer.pages:
-        page.compress_content_streams()
+        page.compress_content_streams(level=9)
 
-    writer.remove_links()
+    try:
+        writer.compress_identical_objects(remove_identicals=True, remove_orphans=True)
+    except AttributeError:
+        pass
 
-    with open(output_path, "wb") as f:
-        writer.write(f)
+    if progress_callback:
+        progress_callback(92)
+
+    buffer = io.BytesIO()
+    writer.write(buffer)
+
+    original_size = Path(input_path).stat().st_size
+    compressed_size = buffer.getbuffer().nbytes
+
+    # Un PDF déjà optimisé ressortirait plus lourd : on garde alors l'original
+    if compressed_size >= original_size:
+        shutil.copyfile(input_path, output_path)
+        compressed_size = original_size
+    else:
+        with open(output_path, "wb") as f:
+            f.write(buffer.getbuffer())
 
     if progress_callback:
         progress_callback(100)
 
-    original_size = Path(input_path).stat().st_size
-    compressed_size = Path(output_path).stat().st_size
     return original_size, compressed_size
 
 
-def _compress_images(writer, preset, progress_callback, total_pages):
-    image_count = 0
-    images_processed = 0
-
+def _recompress_images(writer, preset, progress_callback):
+    page_image_lists = []
+    total = 0
     for page in writer.pages:
-        if "/Resources" in page and "/XObject" in page["/Resources"]:
-            xobjects = page["/Resources"]["/XObject"]
-            for obj_name in xobjects:
-                obj = xobjects[obj_name].get_object()
-                if obj.get("/Subtype") == "/Image":
-                    image_count += 1
+        try:
+            images = page.images
+            count = len(images)
+        except Exception:
+            continue
+        page_image_lists.append((images, count))
+        total += count
 
-    if image_count == 0:
-        if progress_callback:
-            progress_callback(90)
+    if total == 0:
         return
 
-    for page in writer.pages:
-        if "/Resources" not in page or "/XObject" not in page["/Resources"]:
-            continue
-
-        xobjects = page["/Resources"]["/XObject"]
-        for obj_name in xobjects:
-            obj = xobjects[obj_name].get_object()
-            if obj.get("/Subtype") != "/Image":
-                continue
-
+    done = 0
+    for images, count in page_image_lists:
+        for index in range(count):
+            done += 1
             try:
-                width = int(obj["/Width"])
-                height = int(obj["/Height"])
-
-                new_w = max(1, int(width * preset["scale"]))
-                new_h = max(1, int(height * preset["scale"]))
-
-                data = obj.get_data()
-                color_space = obj.get("/ColorSpace", "/DeviceRGB")
-
-                if isinstance(color_space, list):
-                    color_space = str(color_space[0])
-                else:
-                    color_space = str(color_space)
-
-                if "/DeviceCMYK" in color_space:
-                    mode = "CMYK"
-                elif "/DeviceGray" in color_space:
-                    mode = "L"
-                else:
-                    mode = "RGB"
-
-                bits = int(obj.get("/BitsPerComponent", 8))
-                if bits != 8:
-                    images_processed += 1
-                    continue
-
-                expected_size = width * height * (len(mode))
-                if len(data) < expected_size:
-                    images_processed += 1
-                    continue
-
-                img = Image.frombytes(mode, (width, height), data[:expected_size])
-                if img.mode == "CMYK":
-                    img = img.convert("RGB")
-
-                if preset["scale"] < 1.0:
-                    img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-
-                buffer = io.BytesIO()
-                img.save(buffer, format="JPEG", quality=preset["image_quality"], optimize=True)
-                compressed_data = buffer.getvalue()
-
-                obj._data = compressed_data
-                obj["/Filter"] = "/DCTDecode"
-                obj["/Width"] = new_w
-                obj["/Height"] = new_h
-                obj["/ColorSpace"] = "/DeviceRGB"
-                obj["/BitsPerComponent"] = 8
-                obj["/Length"] = len(compressed_data)
+                _recompress_single(images[index], preset)
             except Exception:
+                # Une image illisible ne doit pas faire échouer tout le fichier
                 pass
+            if progress_callback:
+                progress_callback(5 + int(done / total * 82))
 
-            images_processed += 1
-            if progress_callback and image_count > 0:
-                progress = 50 + int(images_processed / image_count * 40)
-                progress_callback(min(progress, 90))
+
+def _recompress_single(image_file, preset):
+    from PIL import Image
+
+    pil_image = image_file.image
+    if pil_image is None:
+        return
+
+    width, height = pil_image.size
+    if width * height < MIN_IMAGE_PIXELS:
+        return
+
+    # Les images à palette, avec transparence ou en noir et blanc 1 bit
+    # se dégradent ou grossissent en JPEG : on ne touche pas
+    if pil_image.mode in ("RGB", "L"):
+        processed = pil_image
+    elif pil_image.mode == "CMYK":
+        processed = pil_image.convert("RGB")
+    else:
+        return
+
+    max_dim = preset["max_dimension"]
+    ratio = min(1.0, max_dim / max(width, height))
+    if ratio < 1.0:
+        new_size = (max(1, round(width * ratio)), max(1, round(height * ratio)))
+        processed = processed.resize(new_size, Image.Resampling.LANCZOS)
+
+    image_file.replace(processed, quality=preset["quality"], optimize=True)
 
 
 def merge_pdfs(input_paths, output_path, progress_callback=None):
+    from pypdf import PdfReader, PdfWriter
+
     writer = PdfWriter()
     total = len(input_paths)
 
