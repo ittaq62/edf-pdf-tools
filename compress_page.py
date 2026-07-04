@@ -59,17 +59,17 @@ class CompressPage(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(16)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(10)
 
-        title = QLabel("Compresser des fichiers PDF")
+        title = QLabel("Compresser des PDF")
         title.setObjectName("title")
         layout.addWidget(title)
 
-        subtitle = QLabel("Réduisez la taille de vos PDF en ajustant la qualité des images")
+        subtitle = QLabel("Réduire la taille des fichiers en compressant les images")
         subtitle.setObjectName("subtitle")
         layout.addWidget(subtitle)
-        layout.addSpacing(8)
+        layout.addSpacing(4)
 
         settings_row = QHBoxLayout()
         quality_label = QLabel("Niveau de compression :")
@@ -90,30 +90,31 @@ class CompressPage(QWidget):
         layout.addWidget(list_label)
 
         self.file_list = QListWidget()
-        self.file_list.setMinimumHeight(180)
+        self.file_list.setMinimumHeight(150)
         self.file_list.setAcceptDrops(True)
-        layout.addWidget(self.file_list)
+        layout.addWidget(self.file_list, 1)
 
-        drop_hint = QLabel("Glissez-déposez vos fichiers PDF ici ou utilisez le bouton ci-dessous")
+        drop_hint = QLabel("Glisser-déposer des PDF ici, ou cliquer sur Ajouter")
         drop_hint.setObjectName("drop_hint")
         drop_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(drop_hint)
 
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(6)
 
-        btn_add = QPushButton("Ajouter des fichiers")
+        btn_add = QPushButton("Ajouter")
         btn_add.setObjectName("btn_secondary")
         btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_add.clicked.connect(self._add_files)
         btn_row.addWidget(btn_add)
 
-        btn_remove = QPushButton("Retirer la sélection")
+        btn_remove = QPushButton("Retirer")
         btn_remove.setObjectName("btn_icon")
         btn_remove.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_remove.clicked.connect(self._remove_selected)
         btn_row.addWidget(btn_remove)
 
-        btn_clear = QPushButton("Tout effacer")
+        btn_clear = QPushButton("Effacer tout")
         btn_clear.setObjectName("btn_icon")
         btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_clear.clicked.connect(self._clear_files)
