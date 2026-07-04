@@ -229,10 +229,13 @@ class CompressPage(QWidget):
 
         lines = []
         for name, orig, comp, ratio in self._results:
-            lines.append(
-                f"  {name} : {self._format_size(orig)} → {self._format_size(comp)} "
-                f"(-{ratio:.1f}%)"
-            )
+            if ratio < 0.5:
+                lines.append(f"  {name} : {self._format_size(orig)} (déjà optimisé)")
+            else:
+                lines.append(
+                    f"  {name} : {self._format_size(orig)} → {self._format_size(comp)} "
+                    f"(-{ratio:.0f}%)"
+                )
 
         for name, err in self._errors:
             lines.append(f"  {name} : Erreur - {err}")
