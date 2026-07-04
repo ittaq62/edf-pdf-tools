@@ -40,36 +40,37 @@ class MergePage(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(16)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(10)
 
-        title = QLabel("Fusionner des fichiers PDF")
+        title = QLabel("Fusionner des PDF")
         title.setObjectName("title")
         layout.addWidget(title)
 
-        subtitle = QLabel("Combinez plusieurs PDF en un seul document, réorganisez l'ordre si besoin")
+        subtitle = QLabel("Combiner plusieurs fichiers en un seul document")
         subtitle.setObjectName("subtitle")
         layout.addWidget(subtitle)
-        layout.addSpacing(8)
+        layout.addSpacing(4)
 
         list_label = QLabel("Fichiers à fusionner (dans l'ordre) :")
         list_label.setObjectName("section_title")
         layout.addWidget(list_label)
 
         self.file_list = QListWidget()
-        self.file_list.setMinimumHeight(200)
+        self.file_list.setMinimumHeight(150)
         self.file_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
         self.file_list.setDefaultDropAction(Qt.DropAction.MoveAction)
-        layout.addWidget(self.file_list)
+        layout.addWidget(self.file_list, 1)
 
-        drop_hint = QLabel("Glissez-déposez vos fichiers PDF ici ou utilisez le bouton ci-dessous")
+        drop_hint = QLabel("Glisser-déposer des PDF ici, ou cliquer sur Ajouter")
         drop_hint.setObjectName("drop_hint")
         drop_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(drop_hint)
 
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(6)
 
-        btn_add = QPushButton("Ajouter des fichiers")
+        btn_add = QPushButton("Ajouter")
         btn_add.setObjectName("btn_secondary")
         btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_add.clicked.connect(self._add_files)
@@ -92,12 +93,6 @@ class MergePage(QWidget):
         btn_remove.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_remove.clicked.connect(self._remove_selected)
         btn_row.addWidget(btn_remove)
-
-        btn_clear = QPushButton("Tout effacer")
-        btn_clear.setObjectName("btn_icon")
-        btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_clear.clicked.connect(self._clear_files)
-        btn_row.addWidget(btn_clear)
 
         btn_row.addStretch()
 

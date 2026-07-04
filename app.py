@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 
-from theme import STYLESHEET, EDF_BLUE, EDF_WHITE
+from theme import STYLESHEET, EDF_WHITE
 from resources import get_edf_logo_pixmap
 
 
@@ -13,8 +13,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("EDF PDF Tools")
-        self.setMinimumSize(900, 620)
-        self.resize(1000, 680)
+        self.setMinimumSize(850, 580)
+        self.resize(960, 640)
         self.setStyleSheet(STYLESHEET)
         self.setWindowIcon(QIcon(get_edf_logo_pixmap(64, 64)))
 
@@ -36,38 +36,27 @@ class MainWindow(QMainWindow):
     def _build_sidebar(self):
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(240)
+        sidebar.setFixedWidth(220)
 
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(12, 20, 12, 20)
-        layout.setSpacing(6)
+        layout.setContentsMargins(10, 16, 10, 16)
+        layout.setSpacing(4)
 
         logo_label = QLabel()
-        logo_label.setPixmap(get_edf_logo_pixmap(180, 70))
+        logo_label.setPixmap(get_edf_logo_pixmap(190, 65, white_text=True))
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(logo_label)
-
-        separator = QFrame()
-        separator.setFixedHeight(1)
-        separator.setStyleSheet(f"background-color: rgba(255,255,255,0.2);")
-        layout.addWidget(separator)
-        layout.addSpacing(10)
-
-        app_title = QLabel("PDF Tools")
-        app_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        app_title.setStyleSheet(f"color: {EDF_WHITE}; font-size: 12px; font-weight: 500; opacity: 0.8;")
-        layout.addWidget(app_title)
-        layout.addSpacing(16)
+        layout.addSpacing(20)
 
         self.nav_buttons = []
 
-        btn_compress = QPushButton("  Compresser")
+        btn_compress = QPushButton("Compresser")
         btn_compress.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_compress.clicked.connect(lambda: self._set_active_page(0))
         layout.addWidget(btn_compress)
         self.nav_buttons.append(btn_compress)
 
-        btn_merge = QPushButton("  Fusionner")
+        btn_merge = QPushButton("Fusionner")
         btn_merge.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_merge.clicked.connect(lambda: self._set_active_page(1))
         layout.addWidget(btn_merge)
@@ -77,7 +66,7 @@ class MainWindow(QMainWindow):
 
         version_label = QLabel("v1.0.0")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        version_label.setStyleSheet(f"color: rgba(255,255,255,0.4); font-size: 11px;")
+        version_label.setStyleSheet(f"color: rgba(255,255,255,0.35); font-size: 10px;")
         layout.addWidget(version_label)
 
         return sidebar
