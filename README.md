@@ -33,3 +33,19 @@ Le fichier exécutable sera généré dans le dossier `dist/`.
 - PyQt6
 - pypdf
 - Pillow
+
+## Historique des versions
+
+### 1.1.0
+
+- Écran de démarrage affiché dès le lancement, avec suivi du chargement
+- Compression des images entièrement revue : recompression JPEG et
+  redimensionnement selon le niveau choisi, gains nettement supérieurs
+- Niveaux de compression réellement différenciés (légère / moyenne / forte)
+- Un fichier compressé ne peut plus être plus volumineux que l'original
+- Exécutable allégé et ouverture plus rapide
+
+### 1.0.0
+
+- Compression et fusion de fichiers PDF
+- Interface aux couleurs EDF avec glisser-déposer
