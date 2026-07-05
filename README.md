@@ -36,6 +36,10 @@ Le fichier exécutable sera généré dans le dossier `dist/`.
 
 ## Historique des versions
 
+### 1.1.3
+
+- Barre de titre sombre restaurée sur la fenêtre principale
+
 ### 1.1.2
 
 - Menu déroulant affiché en liste simple, sans les marges du menu
