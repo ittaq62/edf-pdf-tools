@@ -36,6 +36,11 @@ Le fichier exécutable sera généré dans le dossier `dist/`.
 
 ## Historique des versions
 
+### 1.1.1
+
+- Correction de l'affichage des listes déroulantes lorsque Windows
+  est en thème sombre
+
 ### 1.1.0
 
 - Écran de démarrage affiché dès le lancement, avec suivi du chargement
