@@ -144,6 +144,7 @@ QComboBox {{
     font-size: 13px;
     color: {EDF_TEXT};
     min-width: 180px;
+    combobox-popup: 0;
 }}
 
 QComboBox:hover {{
@@ -158,10 +159,14 @@ QComboBox::drop-down {{
 QComboBox QAbstractItemView {{
     background-color: {EDF_WHITE};
     border: 1px solid {EDF_GRAY_BORDER};
-    padding: 2px;
     outline: none;
     selection-background-color: #dce6f7;
     selection-color: {EDF_BLUE};
+}}
+
+QComboBox QAbstractItemView::item {{
+    min-height: 30px;
+    padding-left: 8px;
 }}
 
 QProgressBar {{
