@@ -27,9 +27,11 @@ def main():
     from app import MainWindow
     from compress_page import CompressPage
     from merge_page import MergePage
+    from theme import build_light_palette
 
     application = QApplication(sys.argv)
     application.setStyle("Fusion")
+    application.setPalette(build_light_palette())
 
     window = MainWindow()
 

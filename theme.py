@@ -1,3 +1,5 @@
+from PyQt6.QtGui import QColor, QPalette
+
 EDF_BLUE = "#003DA5"
 EDF_BLUE_LIGHT = "#1a56c4"
 EDF_BLUE_DARK = "#002B75"
@@ -8,6 +10,29 @@ EDF_GRAY_BG = "#F2F3F5"
 EDF_GRAY_BORDER = "#CCCCCC"
 EDF_TEXT = "#222222"
 EDF_TEXT_LIGHT = "#777777"
+
+
+def build_light_palette():
+    """Palette claire explicite : sans elle, les menus contextuels et
+    listes déroulantes héritent du thème sombre de Windows."""
+    palette = QPalette()
+    roles = {
+        QPalette.ColorRole.Window: EDF_GRAY_BG,
+        QPalette.ColorRole.WindowText: EDF_TEXT,
+        QPalette.ColorRole.Base: EDF_WHITE,
+        QPalette.ColorRole.AlternateBase: "#F7F7F7",
+        QPalette.ColorRole.Text: EDF_TEXT,
+        QPalette.ColorRole.Button: EDF_WHITE,
+        QPalette.ColorRole.ButtonText: EDF_TEXT,
+        QPalette.ColorRole.ToolTipBase: EDF_WHITE,
+        QPalette.ColorRole.ToolTipText: EDF_TEXT,
+        QPalette.ColorRole.PlaceholderText: EDF_TEXT_LIGHT,
+        QPalette.ColorRole.Highlight: EDF_BLUE,
+        QPalette.ColorRole.HighlightedText: EDF_WHITE,
+    }
+    for role, color in roles.items():
+        palette.setColor(role, QColor(color))
+    return palette
 
 
 STYLESHEET = f"""
@@ -133,6 +158,8 @@ QComboBox::drop-down {{
 QComboBox QAbstractItemView {{
     background-color: {EDF_WHITE};
     border: 1px solid {EDF_GRAY_BORDER};
+    padding: 2px;
+    outline: none;
     selection-background-color: #dce6f7;
     selection-color: {EDF_BLUE};
 }}
