@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 
-from theme import STYLESHEET, EDF_WHITE
+from theme import STYLESHEET, EDF_WHITE, apply_dark_title_bar
 from resources import get_edf_logo_pixmap
 from version import APP_NAME, APP_VERSION
 
@@ -18,6 +18,7 @@ class MainWindow(QMainWindow):
         self.resize(960, 640)
         self.setStyleSheet(STYLESHEET)
         self.setWindowIcon(QIcon(get_edf_logo_pixmap(64, 64)))
+        apply_dark_title_bar(self)
 
         central = QWidget()
         self.setCentralWidget(central)

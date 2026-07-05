@@ -1,3 +1,6 @@
+import ctypes
+import sys
+
 from PyQt6.QtGui import QColor, QPalette
 
 EDF_BLUE = "#003DA5"
@@ -10,6 +13,26 @@ EDF_GRAY_BG = "#F2F3F5"
 EDF_GRAY_BORDER = "#CCCCCC"
 EDF_TEXT = "#222222"
 EDF_TEXT_LIGHT = "#777777"
+
+
+def apply_dark_title_bar(window):
+    """Barre de titre sombre sur Windows, assortie au bandeau de navigation.
+    Sans effet sur les autres systèmes."""
+    if sys.platform != "win32":
+        return
+    try:
+        hwnd = int(window.winId())
+        value = ctypes.c_int(1)
+        # DWMWA_USE_IMMERSIVE_DARK_MODE : 20, ou 19 sur les builds
+        # de Windows 10 antérieures a la 20H1
+        for attribute in (20, 19):
+            result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value),
+            )
+            if result == 0:
+                break
+    except Exception:
+        pass
 
 
 def build_light_palette():
