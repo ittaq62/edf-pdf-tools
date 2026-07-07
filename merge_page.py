@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from pdf_tools import merge_pdfs
+from drop_overlay import DropOverlay
 
 
 class MergeWorker(QThread):
@@ -37,6 +38,7 @@ class MergePage(QWidget):
         self.setAcceptDrops(True)
         self.worker = None
         self._setup_ui()
+        self._drop_overlay = DropOverlay(self)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -117,9 +119,14 @@ class MergePage(QWidget):
             for url in event.mimeData().urls():
                 if url.toLocalFile().lower().endswith(".pdf"):
                     event.acceptProposedAction()
+                    self._drop_overlay.show_over(self.file_list)
                     return
 
+    def dragLeaveEvent(self, event):
+        self._drop_overlay.hide_now()
+
     def dropEvent(self, event):
+        self._drop_overlay.hide_now()
         for url in event.mimeData().urls():
             path = url.toLocalFile()
             if path.lower().endswith(".pdf") and not self._file_already_listed(path):
