@@ -36,6 +36,13 @@ Le fichier exécutable sera généré dans le dossier `dist/`.
 
 ## Historique des versions
 
+### 1.3.0
+
+- Correction : le nom des fichiers et l'estimation du gain
+  n'apparaissaient pas dans la liste de compression
+- Zone de dépôt mise en surbrillance pendant un glisser-déposer,
+  avec fondu à l'apparition
+
 ### 1.2.0
 
 - Gain de compression estimé et affiché en direct pour chaque fichier
