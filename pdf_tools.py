@@ -7,6 +7,16 @@ QUALITY_PRESETS = {
     "Légère": {"quality": 80, "max_dimension": 2600},
     "Moyenne": {"quality": 55, "max_dimension": 1600},
     "Forte": {"quality": 30, "max_dimension": 1000},
+    # Convertit chaque page en image (comme les compresseurs en ligne en
+    # mode fort) : gain maximal, mais le texte n'est plus sélectionnable
+    "Extrême": {"raster_dpi": 140, "quality": 45},
+}
+
+PRESET_DESCRIPTIONS = {
+    "Légère": "qualité quasi intacte",
+    "Moyenne": "recommandé pour un envoi par mail",
+    "Forte": "qualité réduite, gain important",
+    "Extrême": "pages converties en images, texte non sélectionnable",
 }
 
 # En dessous de cette surface, une image ne pèse presque rien :
@@ -47,6 +57,10 @@ def _compress_to_buffer(input_path, quality_name, progress_callback):
     from pypdf import PdfReader, PdfWriter
 
     preset = QUALITY_PRESETS[quality_name]
+    original_size = Path(input_path).stat().st_size
+
+    if "raster_dpi" in preset:
+        return _rasterize_to_buffer(input_path, preset, progress_callback), original_size
 
     reader = PdfReader(input_path)
     _dechiffrer_si_necessaire(reader)
@@ -70,13 +84,86 @@ def _compress_to_buffer(input_path, quality_name, progress_callback):
         pass
 
     if progress_callback:
-        progress_callback(92)
+        progress_callback(88)
 
     buffer = io.BytesIO()
     writer.write(buffer)
 
-    original_size = Path(input_path).stat().st_size
+    buffer = _restructurer(buffer)
+    if progress_callback:
+        progress_callback(95)
+
     return buffer, original_size
+
+
+def _restructurer(buffer):
+    """Réécrit le document avec des flux d'objets compressés (pikepdf).
+    Les PDF bureautiques récents stockent leur structure ainsi ; sans cette
+    passe, la réécriture repart en objets à plat et peut doubler de volume."""
+    try:
+        import pikepdf
+
+        buffer.seek(0)
+        with pikepdf.open(buffer) as pdf:
+            out = io.BytesIO()
+            pdf.save(
+                out,
+                object_stream_mode=pikepdf.ObjectStreamMode.generate,
+                recompress_flate=True,
+            )
+        return out
+    except Exception:
+        buffer.seek(0)
+        return buffer
+
+
+def _rasterize_to_buffer(input_path, preset, progress_callback):
+    """Convertit chaque page en image JPEG (rendu pdfium). Chaque page est
+    assemblée au fil de l'eau pour ne jamais garder tout le rendu en mémoire."""
+    import pypdfium2 as pdfium
+    from pypdf import PdfWriter
+
+    try:
+        document = pdfium.PdfDocument(input_path)
+    except Exception as exc:
+        raise PdfProtegeError(
+            "ce PDF est protégé par un mot de passe, il ne peut pas être traité"
+        ) from exc
+
+    dpi = preset["raster_dpi"]
+    quality = preset["quality"]
+    writer = PdfWriter()
+    total = len(document)
+
+    # Cote maximal d'une page rendue : suffisant pour une lecture a l'ecran,
+    # et evite un rendu demesure sur les pages de tres grand format
+    max_render_pixels = 1800
+
+    for index in range(total):
+        page = document[index]
+        page_width, page_height = page.get_size()
+        scale = dpi / 72
+        largest_side = max(page_width, page_height)
+        if largest_side * scale > max_render_pixels:
+            scale = max_render_pixels / largest_side
+
+        bitmap = page.render(scale=scale)
+        pil_page = bitmap.to_pil().convert("RGB")
+
+        page_buffer = io.BytesIO()
+        pil_page.save(
+            page_buffer, format="PDF",
+            quality=quality, optimize=True, resolution=scale * 72,
+        )
+        page_buffer.seek(0)
+        writer.append(page_buffer)
+
+        if progress_callback:
+            progress_callback(5 + int((index + 1) / total * 85))
+
+    buffer = io.BytesIO()
+    writer.write(buffer)
+    return buffer
 
 
 def _dechiffrer_si_necessaire(reader):
@@ -203,10 +290,14 @@ def merge_pdfs(input_paths, output_path, progress_callback=None):
             writer.add_page(page)
 
         if progress_callback:
-            progress_callback(int((i + 1) / total * 90))
+            progress_callback(int((i + 1) / total * 85))
+
+    buffer = io.BytesIO()
+    writer.write(buffer)
+    buffer = _restructurer(buffer)
 
     with open(output_path, "wb") as f:
-        writer.write(f)
+        f.write(buffer.getbuffer())
 
     if progress_callback:
         progress_callback(100)

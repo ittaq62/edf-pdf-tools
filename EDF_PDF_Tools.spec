@@ -7,9 +7,9 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[],
-    # cryptography est charge dynamiquement par pypdf pour ouvrir les PDF
-    # chiffres (proteges en modification) : on force sa presence dans le build
-    hiddenimports=['cryptography'],
+    # Charges dynamiquement au premier usage : cryptography (PDF chiffres),
+    # pikepdf (restructuration) et pypdfium2 (niveau Extreme)
+    hiddenimports=['cryptography', 'pikepdf', 'pypdfium2'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
