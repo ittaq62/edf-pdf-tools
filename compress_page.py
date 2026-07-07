@@ -108,6 +108,7 @@ class CompressPage(QWidget):
         layout.addWidget(list_label)
 
         self.file_list = QListWidget()
+        self.file_list.setObjectName("compress_list")
         self.file_list.setMinimumHeight(150)
         layout.addWidget(self.file_list, 1)
 
@@ -175,7 +176,7 @@ class CompressPage(QWidget):
         label = QLabel()
         label.setTextFormat(Qt.TextFormat.RichText)
         label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        label.setStyleSheet("background: transparent; padding: 6px 8px;")
+        label.setStyleSheet("background: transparent; padding: 7px 10px;")
 
         self.file_list.addItem(item)
         self.file_list.setItemWidget(item, label)
