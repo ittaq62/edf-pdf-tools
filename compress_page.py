@@ -8,7 +8,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
-from pdf_tools import compress_pdf, estimate_compression, QUALITY_PRESETS
+from pdf_tools import (
+    compress_pdf, estimate_compression, QUALITY_PRESETS, PRESET_DESCRIPTIONS,
+)
 from drop_overlay import DropOverlay
 
 
@@ -106,6 +108,10 @@ class CompressPage(QWidget):
         self.quality_combo.setCurrentText("Moyenne")
         self.quality_combo.currentTextChanged.connect(self._on_quality_changed)
         settings_row.addWidget(self.quality_combo)
+
+        self.quality_hint = QLabel(PRESET_DESCRIPTIONS.get("Moyenne", ""))
+        self.quality_hint.setObjectName("status")
+        settings_row.addWidget(self.quality_hint)
 
         settings_row.addStretch()
         layout.addLayout(settings_row)
@@ -221,7 +227,8 @@ class CompressPage(QWidget):
 
     # ----- Estimation du gain en direct -----
 
-    def _on_quality_changed(self, _quality):
+    def _on_quality_changed(self, quality):
+        self.quality_hint.setText(PRESET_DESCRIPTIONS.get(quality, ""))
         self._estimate_generation += 1
         self._estimate_queue.clear()
         for i in range(self.file_list.count()):
