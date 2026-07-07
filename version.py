@@ -1,2 +1,2 @@
 APP_NAME = "EDF PDF Tools"
-APP_VERSION = "1.1.3"
+APP_VERSION = "1.2.0"

@@ -3,11 +3,12 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QListWidget, QComboBox, QProgressBar, QFileDialog, QMessageBox,
+    QListWidget, QListWidgetItem, QComboBox, QProgressBar,
+    QFileDialog, QMessageBox,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
-from pdf_tools import compress_pdf, QUALITY_PRESETS
+from pdf_tools import compress_pdf, estimate_compression, QUALITY_PRESETS
 
 
 class CompressWorker(QThread):
@@ -32,11 +33,32 @@ class CompressWorker(QThread):
             self.error.emit(self.input_path, str(e))
 
 
+class EstimateWorker(QThread):
+    done = pyqtSignal(int, str, int, int)
+    failed = pyqtSignal(int, str, str)
+
+    def __init__(self, generation, input_path, quality):
+        super().__init__()
+        self.generation = generation
+        self.input_path = input_path
+        self.quality = quality
+
+    def run(self):
+        try:
+            original, estimated = estimate_compression(self.input_path, self.quality)
+            self.done.emit(self.generation, self.input_path, original, estimated)
+        except Exception as e:
+            self.failed.emit(self.generation, self.input_path, str(e))
+
+
 class CompressPage(QWidget):
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
         self.workers = []
+        self._estimate_generation = 0
+        self._estimate_queue = []
+        self._estimate_worker = None
         self._setup_ui()
 
     def dragEnterEvent(self, event):
@@ -49,13 +71,8 @@ class CompressPage(QWidget):
     def dropEvent(self, event):
         for url in event.mimeData().urls():
             path = url.toLocalFile()
-            if path.lower().endswith(".pdf") and not self._file_already_listed(path):
-                size = os.path.getsize(path)
-                display = f"{Path(path).name}  ({self._format_size(size)})"
-                self.file_list.addItem(display)
-                self.file_list.item(self.file_list.count() - 1).setData(
-                    Qt.ItemDataRole.UserRole, path,
-                )
+            if path.lower().endswith(".pdf"):
+                self._append_file(path)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -80,6 +97,7 @@ class CompressPage(QWidget):
         for name in QUALITY_PRESETS:
             self.quality_combo.addItem(name)
         self.quality_combo.setCurrentText("Moyenne")
+        self.quality_combo.currentTextChanged.connect(self._on_quality_changed)
         settings_row.addWidget(self.quality_combo)
 
         settings_row.addStretch()
@@ -91,7 +109,6 @@ class CompressPage(QWidget):
 
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(150)
-        self.file_list.setAcceptDrops(True)
         layout.addWidget(self.file_list, 1)
 
         drop_hint = QLabel("Glisser-déposer des PDF ici, ou cliquer sur Ajouter")
@@ -138,17 +155,33 @@ class CompressPage(QWidget):
         self.status_label.setObjectName("status")
         layout.addWidget(self.status_label)
 
+    # ----- Gestion de la liste -----
+
     def _add_files(self):
         files, _ = QFileDialog.getOpenFileNames(
             self, "Sélectionner des fichiers PDF", "",
             "Fichiers PDF (*.pdf)",
         )
         for f in files:
-            if not self._file_already_listed(f):
-                size = os.path.getsize(f)
-                display = f"{Path(f).name}  ({self._format_size(size)})"
-                item = self.file_list.addItem(display)
-                self.file_list.item(self.file_list.count() - 1).setData(Qt.ItemDataRole.UserRole, f)
+            self._append_file(f)
+
+    def _append_file(self, path):
+        if self._file_already_listed(path):
+            return
+
+        item = QListWidgetItem()
+        item.setData(Qt.ItemDataRole.UserRole, path)
+
+        label = QLabel()
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        label.setStyleSheet("background: transparent; padding: 6px 8px;")
+
+        self.file_list.addItem(item)
+        self.file_list.setItemWidget(item, label)
+        self._set_item_text(path, self._waiting_text(path))
+
+        self._queue_estimate(path)
 
     def _file_already_listed(self, path):
         for i in range(self.file_list.count()):
@@ -156,12 +189,103 @@ class CompressPage(QWidget):
                 return True
         return False
 
+    def _item_label(self, path):
+        for i in range(self.file_list.count()):
+            item = self.file_list.item(i)
+            if item.data(Qt.ItemDataRole.UserRole) == path:
+                return item, self.file_list.itemWidget(item)
+        return None, None
+
+    def _set_item_text(self, path, html):
+        item, label = self._item_label(path)
+        if label is not None:
+            label.setText(html)
+            item.setSizeHint(label.sizeHint())
+
     def _remove_selected(self):
         for item in self.file_list.selectedItems():
             self.file_list.takeItem(self.file_list.row(item))
 
     def _clear_files(self):
+        self._estimate_generation += 1
+        self._estimate_queue.clear()
         self.file_list.clear()
+
+    # ----- Estimation du gain en direct -----
+
+    def _on_quality_changed(self, _quality):
+        self._estimate_generation += 1
+        self._estimate_queue.clear()
+        for i in range(self.file_list.count()):
+            path = self.file_list.item(i).data(Qt.ItemDataRole.UserRole)
+            self._set_item_text(path, self._waiting_text(path))
+            self._estimate_queue.append(path)
+        self._start_next_estimate()
+
+    def _queue_estimate(self, path):
+        self._estimate_queue.append(path)
+        self._start_next_estimate()
+
+    def _start_next_estimate(self):
+        if self._estimate_worker is not None and self._estimate_worker.isRunning():
+            return
+        if not self._estimate_queue:
+            return
+
+        path = self._estimate_queue.pop(0)
+        worker = EstimateWorker(
+            self._estimate_generation, path, self.quality_combo.currentText(),
+        )
+        worker.done.connect(self._on_estimate_done)
+        worker.failed.connect(self._on_estimate_failed)
+        worker.finished.connect(self._start_next_estimate)
+        self._estimate_worker = worker
+        worker.start()
+
+    def _on_estimate_done(self, generation, path, original, estimated):
+        if generation != self._estimate_generation:
+            return
+        saved = original - estimated
+        ratio = (saved / original * 100) if original > 0 else 0
+
+        base = self._base_text(path)
+        if ratio < 0.5:
+            gain = '<span style="color:#999999;">déjà optimisé, aucun gain attendu</span>'
+        else:
+            gain = (
+                f'<span style="color:#666666;">→ {self._format_size(estimated)}</span>'
+                f'&nbsp;&nbsp;<b><span style="color:#CC0000;">'
+                f'-{ratio:.0f} % (-{self._format_size(saved)})</span></b>'
+            )
+        self._set_item_text(path, f"{base}&nbsp;&nbsp;{gain}")
+
+    def _on_estimate_failed(self, generation, path, message):
+        if generation != self._estimate_generation:
+            return
+        base = self._base_text(path)
+        self._set_item_text(
+            path,
+            f'{base}&nbsp;&nbsp;<span style="color:#CC0000;">'
+            f'ne pourra pas être compressé : {message}</span>',
+        )
+
+    def _base_text(self, path):
+        try:
+            size = self._format_size(os.path.getsize(path))
+        except OSError:
+            size = "?"
+        return (
+            f'<span style="color:#222222;">{Path(path).name}</span>'
+            f'&nbsp;&nbsp;<span style="color:#888888;">({size})</span>'
+        )
+
+    def _waiting_text(self, path):
+        return (
+            f"{self._base_text(path)}&nbsp;&nbsp;"
+            f'<i><span style="color:#999999;">calcul du gain...</span></i>'
+        )
+
+    # ----- Compression -----
 
     def _start_compression(self):
         if self.file_list.count() == 0:
@@ -173,6 +297,9 @@ class CompressPage(QWidget):
         )
         if not output_dir:
             return
+
+        self._estimate_generation += 1
+        self._estimate_queue.clear()
 
         self.btn_compress.setEnabled(False)
         self.progress_bar.setVisible(True)
