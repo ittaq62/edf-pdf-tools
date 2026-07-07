@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from pdf_tools import compress_pdf, estimate_compression, QUALITY_PRESETS
+from drop_overlay import DropOverlay
 
 
 class CompressWorker(QThread):
@@ -60,15 +61,21 @@ class CompressPage(QWidget):
         self._estimate_queue = []
         self._estimate_worker = None
         self._setup_ui()
+        self._drop_overlay = DropOverlay(self)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 if url.toLocalFile().lower().endswith(".pdf"):
                     event.acceptProposedAction()
+                    self._drop_overlay.show_over(self.file_list)
                     return
 
+    def dragLeaveEvent(self, event):
+        self._drop_overlay.hide_now()
+
     def dropEvent(self, event):
+        self._drop_overlay.hide_now()
         for url in event.mimeData().urls():
             path = url.toLocalFile()
             if path.lower().endswith(".pdf"):
