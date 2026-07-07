@@ -4,9 +4,9 @@ from pathlib import Path
 
 
 QUALITY_PRESETS = {
-    "Légère": {"quality": 75, "max_dimension": 2400},
+    "Légère": {"quality": 80, "max_dimension": 2600},
     "Moyenne": {"quality": 55, "max_dimension": 1600},
-    "Forte": {"quality": 35, "max_dimension": 1100},
+    "Forte": {"quality": 30, "max_dimension": 1000},
 }
 
 # En dessous de cette surface, une image ne pèse presque rien :
@@ -14,32 +14,12 @@ QUALITY_PRESETS = {
 MIN_IMAGE_PIXELS = 10_000
 
 
+class PdfProtegeError(Exception):
+    """PDF exigeant un mot de passe pour être ouvert."""
+
+
 def compress_pdf(input_path, output_path, quality_name="Moyenne", progress_callback=None):
-    from pypdf import PdfWriter
-
-    preset = QUALITY_PRESETS[quality_name]
-
-    writer = PdfWriter(clone_from=input_path)
-    if progress_callback:
-        progress_callback(5)
-
-    _recompress_images(writer, preset, progress_callback)
-
-    for page in writer.pages:
-        page.compress_content_streams(level=9)
-
-    try:
-        writer.compress_identical_objects(remove_identicals=True, remove_orphans=True)
-    except AttributeError:
-        pass
-
-    if progress_callback:
-        progress_callback(92)
-
-    buffer = io.BytesIO()
-    writer.write(buffer)
-
-    original_size = Path(input_path).stat().st_size
+    buffer, original_size = _compress_to_buffer(input_path, quality_name, progress_callback)
     compressed_size = buffer.getbuffer().nbytes
 
     # Un PDF déjà optimisé ressortirait plus lourd : on garde alors l'original
@@ -54,6 +34,67 @@ def compress_pdf(input_path, output_path, quality_name="Moyenne", progress_callb
         progress_callback(100)
 
     return original_size, compressed_size
+
+
+def estimate_compression(input_path, quality_name="Moyenne"):
+    """Taille attendue après compression, sans rien écrire sur le disque."""
+    buffer, original_size = _compress_to_buffer(input_path, quality_name, None)
+    estimated_size = min(buffer.getbuffer().nbytes, original_size)
+    return original_size, estimated_size
+
+
+def _compress_to_buffer(input_path, quality_name, progress_callback):
+    from pypdf import PdfReader, PdfWriter
+
+    preset = QUALITY_PRESETS[quality_name]
+
+    reader = PdfReader(input_path)
+    _dechiffrer_si_necessaire(reader)
+
+    writer = PdfWriter(clone_from=reader)
+    if progress_callback:
+        progress_callback(5)
+
+    _recompress_images(writer, preset, progress_callback)
+
+    for page in writer.pages:
+        try:
+            page.compress_content_streams(level=9)
+        except Exception:
+            # Un flux de contenu inhabituel ne doit pas faire échouer le fichier
+            pass
+
+    try:
+        writer.compress_identical_objects(remove_identicals=True, remove_orphans=True)
+    except Exception:
+        pass
+
+    if progress_callback:
+        progress_callback(92)
+
+    buffer = io.BytesIO()
+    writer.write(buffer)
+
+    original_size = Path(input_path).stat().st_size
+    return buffer, original_size
+
+
+def _dechiffrer_si_necessaire(reader):
+    """Les PDF « protégés en modification » (mot de passe utilisateur vide,
+    très courants en entreprise) s'ouvrent de façon transparente. Seuls les
+    PDF exigeant un vrai mot de passe sont refusés, avec un message clair."""
+    if not reader.is_encrypted:
+        return
+    try:
+        result = reader.decrypt("")
+    except Exception as exc:
+        raise PdfProtegeError(
+            "ce PDF utilise un chiffrement non pris en charge"
+        ) from exc
+    if int(result) == 0:
+        raise PdfProtegeError(
+            "ce PDF est protégé par un mot de passe, il ne peut pas être traité"
+        )
 
 
 def _recompress_images(writer, preset, progress_callback):
@@ -121,6 +162,7 @@ def merge_pdfs(input_paths, output_path, progress_callback=None):
 
     for i, path in enumerate(input_paths):
         reader = PdfReader(path)
+        _dechiffrer_si_necessaire(reader)
         for page in reader.pages:
             writer.add_page(page)
 
