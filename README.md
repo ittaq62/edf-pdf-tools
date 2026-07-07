@@ -36,6 +36,16 @@ Le fichier exécutable sera généré dans le dossier `dist/`.
 
 ## Historique des versions
 
+### 1.4.0
+
+- Nouveau niveau « Extrême » : les pages sont converties en images,
+  pour un gain maximal sur les documents dont le poids vient des
+  polices (exports Word, CV...). Le texte n'est alors plus
+  sélectionnable, comme sur les compresseurs en ligne
+- La structure des PDF est réécrite en flux d'objets compressés :
+  les documents Office ne regonflent plus à la compression
+- Description du niveau sélectionné affichée dans l'interface
+
 ### 1.3.1
 
 - Les images PNG à canal de transparence opaque (standard des CV et
