@@ -36,6 +36,14 @@ Le fichier exécutable sera généré dans le dossier `dist/`.
 
 ## Historique des versions
 
+### 1.3.1
+
+- Les images PNG à canal de transparence opaque (standard des CV et
+  exports bureautiques) sont désormais compressées : gains alignés
+  sur les outils en ligne
+- Une image qui ne gagne rien est conservée telle quelle, sans
+  annuler les gains des autres images du fichier
+
 ### 1.3.0
 
 - Correction : le nom des fichiers et l'estimation du gain
