@@ -105,6 +105,12 @@ QListWidget::item {{
     border-radius: 3px;
 }}
 
+/* La liste de compression affiche ses lignes via des widgets : le padding
+   d'item réduirait la zone qui leur est allouée et masquerait le texte */
+QListWidget#compress_list::item {{
+    padding: 0px;
+}}
+
 QListWidget::item:selected {{
     background-color: #dce6f7;
     color: {EDF_BLUE};
