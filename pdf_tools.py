@@ -136,22 +136,58 @@ def _recompress_single(image_file, preset):
     if width * height < MIN_IMAGE_PIXELS:
         return
 
-    # Les images à palette, avec transparence ou en noir et blanc 1 bit
-    # se dégradent ou grossissent en JPEG : on ne touche pas
-    if pil_image.mode in ("RGB", "L"):
-        processed = pil_image
-    elif pil_image.mode == "CMYK":
-        processed = pil_image.convert("RGB")
-    else:
-        return
+    mode = pil_image.mode
+    if mode == "P":
+        if pil_image.info.get("transparency") is not None:
+            pil_image = pil_image.convert("RGBA")
+            mode = "RGBA"
+        else:
+            pil_image = pil_image.convert("RGB")
+            mode = "RGB"
 
+    if mode in ("RGBA", "LA", "PA"):
+        # Tres frequent dans les documents bureautiques : un canal alpha
+        # entierement opaque, qui empeche toute compression JPEG
+        alpha = pil_image.getchannel("A")
+        if alpha.getextrema()[0] >= 255:
+            pil_image = pil_image.convert("L" if mode == "LA" else "RGB")
+            mode = pil_image.mode
+        else:
+            return  # vraie transparence : l'image est preservee telle quelle
+
+    if mode == "CMYK":
+        pil_image = pil_image.convert("RGB")
+        mode = "RGB"
+
+    if mode not in ("RGB", "L"):
+        return  # 1 bit, 16 bits... deja compacts ou trop fragiles
+
+    processed = pil_image
     max_dim = preset["max_dimension"]
     ratio = min(1.0, max_dim / max(width, height))
     if ratio < 1.0:
         new_size = (max(1, round(width * ratio)), max(1, round(height * ratio)))
         processed = processed.resize(new_size, Image.Resampling.LANCZOS)
 
+    indirect = image_file.indirect_reference
+    original_obj = indirect.get_object()
+    try:
+        original_size = len(original_obj._data)
+    except Exception:
+        original_size = None
+
     image_file.replace(processed, quality=preset["quality"], optimize=True)
+
+    # Garde par image : si le nouvel encodage n'apporte pas un vrai gain
+    # (JPEG deja bien compresse par exemple), l'image d'origine est retablie.
+    # Evite qu'une image qui grossit annule les gains de toutes les autres.
+    if original_size is not None:
+        try:
+            new_size_bytes = len(indirect.get_object()._data)
+        except Exception:
+            new_size_bytes = None
+        if new_size_bytes is None or new_size_bytes >= original_size * 0.95:
+            indirect.pdf._objects[indirect.idnum - 1] = original_obj
 
 
 def merge_pdfs(input_paths, output_path, progress_callback=None):
