@@ -36,6 +36,17 @@ Le fichier exécutable sera généré dans le dossier `dist/`.
 
 ## Historique des versions
 
+### 1.2.0
+
+- Gain de compression estimé et affiché en direct pour chaque fichier
+  ajouté (pourcentage et octets économisés), recalculé selon le niveau
+- Prise en charge des PDF protégés en modification, très courants en
+  entreprise (l'origine des erreurs de compression en 1.1)
+- Message clair pour les PDF exigeant un mot de passe, signalés avant
+  même de lancer la compression
+- Une page au contenu inhabituel n'interrompt plus le traitement du fichier
+- Niveaux de compression plus contrastés
+
 ### 1.1.3
 
 - Barre de titre sombre restaurée sur la fenêtre principale
